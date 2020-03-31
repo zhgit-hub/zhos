@@ -23,10 +23,10 @@ void HariMain(void)
 
 	init_palette(); /* set color palette*/
 	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
-	mx = (binfo->scrnx - 16) / 2; /* ��ʒ����ɂȂ�悤�ɍ��W�v�Z */
+	mx = (binfo->scrnx - 16) / 2;
 	my = (binfo->scrny - 28 - 16) / 2;
 	init_mouse_cursor8(mcursor, COL8_008484);
-	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	// putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
 	sprintf(s, "(%d, %d)", mx, my);
 	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
 
@@ -63,7 +63,7 @@ void HariMain(void)
 
 void wait_KBC_sendready(void)
 {
-	/* �L�[�{�[�h�R���g���[�����f�[�^���M�\�ɂȂ�̂�҂� */
+	/* waiting kbd control circuit ready */
 	for (;;) {
 		if ((io_in8(PORT_KEYSTA) & KEYSTA_SEND_NOTREADY) == 0) {
 			break;
@@ -74,7 +74,7 @@ void wait_KBC_sendready(void)
 
 void init_keyboard(void)
 {
-	/* �L�[�{�[�h�R���g���[���̏����� */
+	/* init kbd control circuit */
 	wait_KBC_sendready();
 	io_out8(PORT_KEYCMD, KEYCMD_WRITE_MODE);
 	wait_KBC_sendready();
@@ -87,10 +87,10 @@ void init_keyboard(void)
 
 void enable_mouse(void)
 {
-	/* �}�E�X�L�� */
+	/* enable mouse */
 	wait_KBC_sendready();
 	io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
 	wait_KBC_sendready();
 	io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
-	return; /* ���܂�������ACK(0xfa)�����M����Ă��� */
+	return; /* success return ACK(0xfa) */
 }

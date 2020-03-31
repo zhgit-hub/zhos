@@ -1,5 +1,3 @@
-/* ���荞�݊֌W */
-
 #include "bootpack.h"
 #include <stdio.h>
 
@@ -28,7 +26,6 @@ void init_pic(void)
 #define PORT_KEYDAT		0x0060
 
 struct FIFO8 keyfifo;
-
 /* KBD */
 void inthandler21(int *esp)
 {
@@ -40,13 +37,12 @@ void inthandler21(int *esp)
 }
 
 struct FIFO8 mousefifo;
-
+/* Mouse */
 void inthandler2c(int *esp)
-/* PS/2�}�E�X����̊��荞�� */
 {
 	unsigned char data;
-	io_out8(PIC1_OCW2, 0x64);	/* IRQ-12��t������PIC1�ɒʒm */
-	io_out8(PIC0_OCW2, 0x62);	/* IRQ-02��t������PIC0�ɒʒm */
+	io_out8(PIC1_OCW2, 0x64);	/* inform PIC1 that IRQ-12 has been done */
+	io_out8(PIC0_OCW2, 0x62);	/* inform PIC0 that IRQ-02 has been done */
 	data = io_in8(PORT_KEYDAT);
 	fifo8_put(&mousefifo, data);
 	return;

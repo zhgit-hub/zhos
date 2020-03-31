@@ -1,5 +1,3 @@
-/* �O���t�B�b�N�����֌W */
-
 #include "bootpack.h"
 
 void init_palette(void)

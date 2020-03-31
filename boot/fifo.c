@@ -1,26 +1,23 @@
-/* FIFOライブラリ */
-
 #include "bootpack.h"
 
 #define FLAGS_OVERRUN		0x0001
 
 void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf)
-/* FIFOバッファの初期化 */
+/* FIFO buffer init */
 {
 	fifo->size = size;
 	fifo->buf = buf;
-	fifo->free = size; /* 空き */
+	fifo->free = size; /* buffer size */
 	fifo->flags = 0;
-	fifo->p = 0; /* 書き込み位置 */
-	fifo->q = 0; /* 読み込み位置 */
+	fifo->p = 0; /* next to write */
+	fifo->q = 0; /* next to read */
 	return;
 }
 
 int fifo8_put(struct FIFO8 *fifo, unsigned char data)
-/* FIFOへデータを送り込んで蓄える */
+/* put data to FIFO */
 {
 	if (fifo->free == 0) {
-		/* 空きがなくてあふれた */
 		fifo->flags |= FLAGS_OVERRUN;
 		return -1;
 	}
@@ -34,11 +31,10 @@ int fifo8_put(struct FIFO8 *fifo, unsigned char data)
 }
 
 int fifo8_get(struct FIFO8 *fifo)
-/* FIFOからデータを一つとってくる */
+/* get data from FIFO */
 {
 	int data;
 	if (fifo->free == fifo->size) {
-		/* バッファが空っぽのときは、とりあえず-1が返される */
 		return -1;
 	}
 	data = fifo->buf[fifo->q];
@@ -51,7 +47,6 @@ int fifo8_get(struct FIFO8 *fifo)
 }
 
 int fifo8_status(struct FIFO8 *fifo)
-/* どのくらいデータが溜まっているかを報告する */
 {
 	return fifo->size - fifo->free;
 }
