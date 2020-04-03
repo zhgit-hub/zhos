@@ -31,19 +31,19 @@ VRAM	EQU		0x0ff8
 		INT		0x16 			; keyboard BIOS
 		MOV		[LEDS],AL
 
-; 	PIC����؂̊��荞�݂��󂯕t���Ȃ��悤�ɂ���
-;	AT�݊��@�̎d�l�ł́APIC�̏�����������Ȃ�A
-;	������CLI�O�ɂ���Ă����Ȃ��ƁA���܂Ƀn���O�A�b�v����
-;	PIC�̏������͂��Ƃł��
+; 	PIC close all interrupts
+;	on AT machine, init PIC 
+;	must before CLI, otherwise 
+;	will be hang up sometimes
 
 		MOV		AL,0xff
 		OUT		0x21,AL
-		NOP						; OUT���߂�A��������Ƃ��܂������Ȃ��@�킪����炵���̂�
+		NOP	 
 		OUT		0xa1,AL
 
-		CLI						; �����CPU���x���ł����荞�݋֎~
+		CLI						; forbid CPU level interrupt
 
-; CPU����1MB�ȏ�̃������ɃA�N�Z�X�ł���悤�ɁAA20GATE��ݒ�
+; set A20GATE for CPU access more than 1MB RAM 
 
 		CALL	waitkbdout
 		MOV		AL,0xd1
@@ -53,72 +53,73 @@ VRAM	EQU		0x0ff8
 		OUT		0x60,AL
 		CALL	waitkbdout
 
-; �v���e�N�g���[�h�ڍs
+; switch to protect mode
 
-[INSTRSET "i486p"]				; 486�̖��߂܂Ŏg�������Ƃ����L�q
+[INSTRSET "i486p"]			
 
-		LGDT	[GDTR0]			; �b��GDT��ݒ�
+		LGDT	[GDTR0]			; set GDT temporary
 		MOV		EAX,CR0
-		AND		EAX,0x7fffffff	; bit31��0�ɂ���i�y�[�W���O�֎~�̂��߁j
-		OR		EAX,0x00000001	; bit0��1�ɂ���i�v���e�N�g���[�h�ڍs�̂��߁j
+		AND		EAX,0x7fffffff	; set bit31 0
+		OR		EAX,0x00000001	; set bit0  1 ; for switch to protect mode
 		MOV		CR0,EAX
 		JMP		pipelineflush
 pipelineflush:
-		MOV		AX,1*8			;  �ǂݏ����\�Z�O�����g32bit
+		MOV		AX,1*8			; RW segment 32bit
 		MOV		DS,AX
 		MOV		ES,AX
 		MOV		FS,AX
 		MOV		GS,AX
 		MOV		SS,AX
 
-; bootpack�̓]��
+; bootpack transmit
 
-		MOV		ESI,bootpack	; �]����
-		MOV		EDI,BOTPAK		; �]����
+		MOV		ESI,bootpack	; transmit src
+		MOV		EDI,BOTPAK		; transmit addr
 		MOV		ECX,512*1024/4
 		CALL	memcpy
 
-; ���łɃf�B�X�N�f�[�^���{���̈ʒu�֓]��
+; transmit disk data to where it should be
 
-; �܂��̓u�[�g�Z�N�^����
+; first, boot sector
 
-		MOV		ESI,0x7c00		; �]����
-		MOV		EDI,DSKCAC		; �]����
+		MOV		ESI,0x7c00		; transmit src
+		MOV		EDI,DSKCAC		; transmit addr
 		MOV		ECX,512/4
 		CALL	memcpy
 
-; �c��S��
+; all last
 
-		MOV		ESI,DSKCAC0+512	; �]����
-		MOV		EDI,DSKCAC+512	; �]����
+		MOV		ESI,DSKCAC0+512	; transmit src
+		MOV		EDI,DSKCAC+512	; transmit addr
 		MOV		ECX,0
 		MOV		CL,BYTE [CYLS]
-		IMUL	ECX,512*18*2/4	; �V�����_������o�C�g��/4�ɕϊ�
-		SUB		ECX,512/4		; IPL�̕�������������
+		IMUL	ECX,512*18*2/4	; cylinder num to byte num/4
+		SUB		ECX,512/4		; subtract IPL
 		CALL	memcpy
 
-; asmhead�ł��Ȃ���΂����Ȃ����Ƃ͑S�����I������̂ŁA
-;	���Ƃ�bootpack�ɔC����
+; asmhead work finish
+; bootpack finish last work
 
-; bootpack�̋N��
+; bootpack boot
 
 		MOV		EBX,BOTPAK
 		MOV		ECX,[EBX+16]
 		ADD		ECX,3			; ECX += 3;
 		SHR		ECX,2			; ECX /= 4;
-		JZ		skip			; �]������ׂ����̂��Ȃ�
-		MOV		ESI,[EBX+20]	; �]����
+		JZ		skip			; nothing to transmit
+		MOV		ESI,[EBX+20]	; transmit src
 		ADD		ESI,EBX
-		MOV		EDI,[EBX+12]	; �]����
+		MOV		EDI,[EBX+12]	; transmit addr
 		CALL	memcpy
 skip:
-		MOV		ESP,[EBX+12]	; �X�^�b�N�����l
+		MOV		ESP,[EBX+12]	; stack init value
 		JMP		DWORD 2*8:0x0000001b
 
 waitkbdout:
-		IN		 AL,0x64
-		AND		 AL,0x02
-		JNZ		waitkbdout		; AND�̌��ʂ�0�łȂ����waitkbdout��
+		IN		AL,0x64
+		AND		AL,0x02			;########################
+		IN 		AL,0x60			; read null for clear rubbish in buffer(add)
+		JNZ		waitkbdout		; if AND!=0 jmp to waitkbdout
 		RET
 
 memcpy:
@@ -127,15 +128,15 @@ memcpy:
 		MOV		[EDI],EAX
 		ADD		EDI,4
 		SUB		ECX,1
-		JNZ		memcpy			; �����Z�������ʂ�0�łȂ����memcpy��
+		JNZ		memcpy			
 		RET
-; memcpy�̓A�h���X�T�C�Y�v���t�B�N�X�����Y��Ȃ���΁A�X�g�����O���߂ł�������
+; memcpy
 
 		ALIGNB	16
 GDT0:
-		RESB	8				; �k���Z���N�^
-		DW		0xffff,0x0000,0x9200,0x00cf	; �ǂݏ����\�Z�O�����g32bit
-		DW		0xffff,0x0000,0x9a28,0x0047	; ���s�\�Z�O�����g32bit�ibootpack�p�j
+		RESB	8				; NULL selector
+		DW		0xffff,0x0000,0x9200,0x00cf	; RW segment 32bit
+		DW		0xffff,0x0000,0x9a28,0x0047	; RW segment 32bit for bootpack
 
 		DW		0
 GDTR0:
